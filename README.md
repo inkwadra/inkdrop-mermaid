@@ -1,7 +1,8 @@
 # Mermaid for Inkdrop
 
-Draw flowcharts and diagrams with [mermaid.js](https://mermaid.js.org/) in Markdown code
-blocks.
+Draw flowcharts and diagrams with [Mermaid](https://mermaid.js.org/) syntax in Markdown
+code blocks, rendered by [Pele](https://pele.run) — a small, synchronous Mermaid renderer
+whose SVG is coloured with CSS variables.
 
 ![Flowchart example](docs/images/example-01.png)
 
@@ -67,9 +68,9 @@ ipm link packages/plugin
 - `packages/plugin/styles/mermaid.css` is **generated** at build time (copied from the
   renderer package by `scripts/copy-styles.mjs`) and is gitignored. Edit the source in
   `packages/mermaid/styles/`. The plugin's own `styles/fullscreen.css` is hand-written.
-- Mermaid is loaded lazily. It is roughly 3.4 MB, so it lives in its own chunk that is
-  only fetched once a diagram actually appears — worth re-checking the chunk sizes after
-  touching imports or the build config.
+- Pele is loaded lazily. It is roughly 680 kB minified (about 245 kB gzipped), so it lives
+  in its own chunk that is only fetched once a diagram actually appears — worth
+  re-checking the chunk sizes after touching imports or the build config.
 
 ## Publishing
 

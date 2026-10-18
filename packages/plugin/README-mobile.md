@@ -1,4 +1,4 @@
-It allows you to draw flowcharts and diagrams using [mermaid.js](https://mermaidjs.github.io/) in Markdown code block.
+It allows you to draw flowcharts and diagrams using [Mermaid](https://mermaid.js.org/) syntax in Markdown code blocks, rendered by [Pele](https://pele.run).
 
 ## Usage
 

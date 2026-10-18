@@ -14,7 +14,7 @@ export default defineConfig({
     // The published plugin must be self-contained: ipm installs it from the
     // registry (it is in desktop-v6's `autoInstallPackages`) and the tarball
     // excludes node_modules, so the workspace package is bundled in.
-    alwaysBundle: ['mermaid', 'panzoom', '@inkdropapp/mermaid']
+    alwaysBundle: ['pele', '@inkdropapp/mermaid']
   },
   outputOptions: {
     codeSplitting: {
@@ -25,7 +25,7 @@ export default defineConfig({
           priority: 20
         },
         {
-          // Everything Mermaid-heavy, kept out of the eager entry chunk. The
+          // The renderer and Pele, kept out of the eager entry chunk. The
           // `packages/mermaid` arm matches @inkdropapp/mermaid: pnpm links it
           // as a workspace package, so it resolves to a real path outside
           // node_modules.
