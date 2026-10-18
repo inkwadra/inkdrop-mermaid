@@ -66,8 +66,10 @@ Both pan & zoom and the toolbar are enabled by default and can be toggled in
 ## Theming
 
 Diagrams automatically match your active Inkdrop theme. Their colors come from the
-theme's `--mermaid-*` CSS variables, applied live, so switching between light and dark —
-or any custom theme — restyles every diagram instantly. No configuration required.
+theme's `--mermaid-*` CSS variables, including the per-diagram ones such as sequence
+notes, Gantt task states or the pie and git palettes. They apply live, so switching between
+light and dark — or any custom theme — restyles every diagram instantly. No configuration
+required.
 
 Exports and prints render in light mode, so diagrams stay legible on white paper.
 

@@ -35,6 +35,28 @@ package's sheet maps them onto Pele's `--pele-*` variables (`--pele-surface` ←
 `--mermaid-node-background-color`, `--pele-line` ← `--mermaid-line-color`, and so on).
 Without the token sheet, diagrams fall back to Pele's default palette.
 
+The per-diagram tokens apply too, to the parts Pele draws for them: sequence actors,
+lifelines, activations, notes and `loop` / `alt` frames; class, state and ER boxes; Gantt
+sections and task states; requirement, C4, block, architecture, use case, event modeling,
+packet, quadrant, Venn, XY, radar, Wardley and Cynefin colours; and the node shadow. Pie
+slices and git branches are derived from `--mermaid-primary-color`,
+`--mermaid-secondary-color` and `--mermaid-tertiary-color`, as Mermaid derived them. Where
+Pele draws a part differently from Mermaid, the token goes to the nearest part:
+
+- ER entities are one box with every other attribute row striped over it, so the header
+  takes `--mermaid-row-even-background-color` along with the even rows.
+- Pele does not mark whether a Gantt label sits inside its bar or beside it, so all task
+  labels take `--mermaid-task-text-color`.
+
+These tokens have no counterpart in Pele and are not used:
+`--mermaid-default-link-color`, `--mermaid-label-color`, `--mermaid-secondary-border-color`,
+`--mermaid-composite-title-background-color`, `--mermaid-alt-background-color`,
+`--mermaid-task-text-light-color`, `--mermaid-task-text-dark-color`,
+`--mermaid-task-text-outside-color`, `--mermaid-pie-outer-stroke-color`,
+`--mermaid-xychart-background-color` and `--mermaid-wardley-background-color`.
+
+A diagram's own `style`, `classDef` and `linkStyle` still win over every token.
+
 `--pele-bg` is mapped to `--editor-background-color`, not `--mermaid-background-color`:
 Pele paints it behind edge labels and as text on filled shapes, so it has to be opaque.
 Override it on `.mermaid-diagram` when a diagram sits on another background.
