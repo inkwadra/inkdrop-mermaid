@@ -1,6 +1,6 @@
 # Mermaid plugin for Inkdrop
 
-A plugin for drawing flowcharts and diagrams using [mermaid.js](https://mermaid.js.org/) in Markdown code blocks.
+A plugin for drawing flowcharts and diagrams using [Mermaid](https://mermaid.js.org/) syntax in Markdown code blocks, rendered by [Pele](https://pele.run).
 
 ## Install
 
@@ -48,55 +48,46 @@ It will be rendered as:
 
 Rendered diagrams are interactive:
 
-- **Drag** to pan.
-- **Ctrl/Cmd + scroll** to zoom in and out (a plain scroll still scrolls the note).
-- **Ctrl/Cmd + drag** to select text in the diagram instead of panning.
+- **Ctrl/Cmd + scroll** or **pinch** to zoom in and out (a plain scroll still scrolls the
+  note).
+- **Double-click** to zoom in, and again to reset.
+- **Drag** to pan a zoomed diagram. At its normal size, dragging selects text.
+- With the diagram focused, **+** / **-** zoom, **0** resets, and the **arrow keys** pan.
 
 Hover a diagram to reveal a floating toolbar in the bottom-right corner with zoom
-in / out / reset controls and a button to open the diagram **full-screen**. A subtle
-dot-grid backdrop tracks the diagram as you pan and zoom.
+in / out / reset controls and a button to open the diagram **full-screen**.
+
+While you edit, a diagram with a syntax error keeps its last good drawing, dimmed, with
+the error shown under it.
 
 Both pan & zoom and the toolbar are enabled by default and can be toggled in
 [Preferences](#preferences).
 
 ## Theming
 
-Diagrams automatically match your active Inkdrop theme. Their colors are derived from
-the theme's `--mermaid-*` CSS variables and re-resolved on every render, so switching
-between light and dark — or any custom theme — restyles every diagram to fit. No
-configuration required.
+Diagrams automatically match your active Inkdrop theme. Their colors come from the
+theme's `--mermaid-*` CSS variables, including the per-diagram ones such as sequence
+notes, Gantt task states or the pie and git palettes. They apply live, so switching between
+light and dark — or any custom theme — restyles every diagram instantly. No configuration
+required.
 
 Exports and prints render in light mode, so diagrams stay legible on white paper.
 
 ### Per-diagram overrides
 
-To override the theme for a single diagram, use Mermaid's `%%{init}%%` directive:
+Mermaid's `themeVariables` (for example in a `%%{init}%%` directive) are not applied.
+Style individual nodes and edges with `style`, `classDef` and `linkStyle` instead:
 
     ```mermaid
-    %%{init:{
-      'theme':'base',
-      'themeVariables': {
-        'primaryColor':'#6A7FAB',
-        'primaryTextColor':'#FAFBF9',
-        'primaryBorderColor':'#6A7FAB',
-        'lineColor':'#6A7FABCC',
-        'textColor':'#6A7FABCC',
-        'fontSize':'16px'
-      }
-    }}%%
-
-    graph TD;
-        A-->B;
-        A-->C;
-        B-->D;
-        C-->D;
+    flowchart LR
+      A[Draft] --> B[Review]:::warn --> C[Done]
+      style C fill:#879a39,stroke:#66800b,color:#fffcf0
+      classDef warn fill:#d0a215,stroke:#ad8301
+      linkStyle 0 stroke:#878580,stroke-dasharray:4 4
     ```
 
-It yields:
-
-![Inline theming example](https://github.com/inkdropapp/inkdrop-mermaid/raw/master/docs/images/example-03.png)
-
-More details can be found in [the Mermaid documentation](https://mermaid.js.org/config/theming.html).
+Colors set this way are fixed and do not change with the theme. See
+[Pele's theming docs](https://pele.run/theming) for more.
 
 ## Preferences
 
@@ -104,7 +95,7 @@ Configure the plugin in Preferences → Plugins → mermaid:
 
 | Option         | Default | Description                                                       |
 | -------------- | ------- | ----------------------------------------------------------------- |
-| **Pan & Zoom** | On      | Drag to pan and Ctrl/Cmd + scroll to zoom rendered diagrams.      |
+| **Pan & Zoom** | On      | Ctrl/Cmd + scroll or pinch to zoom diagrams, and drag to pan.     |
 | **Toolbar**    | On      | Show a hover toolbar with zoom controls and a full-screen button. |
 
 ## Changelog

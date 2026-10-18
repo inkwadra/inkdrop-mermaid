@@ -11,7 +11,7 @@ class InkdropPlugin implements IInkdropPlugin {
     panZoom: {
       title: 'Pan & Zoom',
       type: 'boolean',
-      description: 'Drag to pan and Ctrl/Cmd + scroll to zoom rendered diagrams',
+      description: 'Ctrl/Cmd + scroll or pinch to zoom rendered diagrams, and drag to pan them',
       default: true
     },
     toolbar: {

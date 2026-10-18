@@ -1,8 +1,668 @@
 .mermaid-diagram {
   position: relative;
 
+  /* Pele colours its SVG from --pele-* variables, which are live: a theme
+     switch restyles a drawn diagram without re-rendering it. Map them onto the
+     host's --mermaid-* tokens (@inkdropapp/css/mermaid.css). Where a token is
+     missing, the variable is invalid and Pele's own default applies.
+
+     --pele-bg has to be opaque: Pele paints it behind edge labels and as the
+     text colour on filled shapes. Inkdrop's --mermaid-background-color is
+     transparent, so the preview's own background is used instead. */
+  --pele-bg: var(--editor-background-color);
+  --pele-fg: var(--mermaid-text-color);
+  --pele-muted: var(--muted-text-color);
+  --pele-line: var(--mermaid-line-color);
+  --pele-surface: var(--mermaid-node-background-color);
+  --pele-surface-alt: var(--mermaid-cluster-background-color);
+  --pele-border: var(--mermaid-node-border-color);
+  --pele-accent: var(--mermaid-node-border-color);
+  --pele-critical: var(--mermaid-crit-task-border-color);
+  --pele-error: var(--mermaid-error-text-color);
+  --pele-font: var(--page-font);
+  --pele-font-mono: var(--page-font);
+
   .mermaid-diagram-content {
     overflow: hidden;
+  }
+}
+
+/* Print/export: resolve every light-dark() token to its light branch, so the
+   diagram is legible on white paper whatever the app's theme. */
+.mermaid-diagram.mermaid-diagram-print {
+  color-scheme: light;
+}
+
+/* ---------------------------------------------------------------------------
+   Diagram tokens
+
+   The mapping above gives every diagram its node, cluster and line colours.
+   Below, the rest of the --mermaid-* tokens — the ones Mermaid's theme
+   variables read, such as the sequence actors, notes or Gantt task states — are
+   applied to the parts Pele draws for them, so a theme that sets them keeps
+   styling its diagrams.
+
+   - On the root <svg class="pele pele-<type>">, re-pointing a --pele-* variable
+     recolours everything Pele paints with it in that diagram.
+   - Otherwise a rule sets fill / stroke on Pele's class names. A declaration
+     beats Pele's presentation attributes but not an inline style, which is
+     where a diagram's own `style`, `classDef` and `linkStyle` go: those win.
+
+   Pele paints from private aliases (--_bg, --_fg, --_m, --_l, --_s, --_a, --_b,
+   --_c) that it derives on the root from --pele-*. A rule matches an alias in
+   an attribute only to tell a part Pele coloured from one the diagram coloured
+   or left unfilled, and falls back to the alias when a token is missing, so a
+   token sheet without it leaves Pele's colour rather than black.
+   --------------------------------------------------------------------------- */
+.mermaid-diagram {
+  /* --- Every diagram (low specificity, so a diagram's own rules win) --- */
+  :where(.pele) .pele-title {
+    fill: var(--mermaid-title-color, var(--_fg));
+  }
+  :where(.pele-node) > .pele-label:where(:not([fill])) {
+    fill: var(--mermaid-node-text-color, var(--_fg));
+  }
+
+  /* Notes (sequence, state, class, use case) */
+  :where(.pele-note:not(.pele-edge)) > :is(rect, path):not([fill='none']) {
+    fill: var(--mermaid-note-background-color, var(--_a));
+    fill-opacity: 1;
+  }
+  :where(.pele-note:not(.pele-edge)) > :is(rect, path) {
+    stroke: var(--mermaid-note-border-color, var(--_b));
+  }
+  :where(.pele-note:not(.pele-edge)) .pele-label {
+    fill: var(--mermaid-note-text-color, var(--_fg));
+  }
+
+  /* A diagram that could not be drawn at all (one drawn before keeps its
+     drawing, with the error over its bottom edge). */
+  .pele-error:only-child {
+    padding: 0.5em 0.75em;
+    border-radius: 4px;
+    background: var(--mermaid-error-background-color, transparent);
+  }
+
+  /* --- Flowchart --- */
+  :is(.pele.pele-flowchart, .pele.pele-swimlane) {
+    .pele-edge > .pele-marker[fill='var(--_l)'] {
+      fill: var(--mermaid-arrowhead-color, var(--_l));
+    }
+    .pele-edge-label > rect {
+      fill: var(--mermaid-edge-label-background-color, var(--_bg));
+    }
+    .pele-cluster > rect {
+      stroke: var(--mermaid-cluster-border-color, var(--_b));
+      fill-opacity: 1;
+    }
+    .pele-cluster-label:not([style]) {
+      fill: var(--mermaid-title-color, var(--_m));
+    }
+    .pele-node > :is(rect, path, polygon, circle, ellipse) {
+      filter: var(--mermaid-node-shadow, none);
+    }
+  }
+
+  /* --- Sequence --- */
+  .pele.pele-sequence {
+    --pele-surface: var(--mermaid-actor-background-color);
+    --pele-border: var(--mermaid-actor-border-color);
+    --pele-line: var(--mermaid-signal-color);
+
+    .pele-actor .pele-label {
+      fill: var(--mermaid-actor-text-color, var(--_fg));
+    }
+    .pele-actor > :is(rect, path, circle) {
+      filter: var(--mermaid-node-shadow, none);
+    }
+    .pele-lifelines {
+      stroke: var(--mermaid-actor-line-color, var(--_b));
+    }
+    .pele-edge-label text:not([fill]) {
+      fill: var(--mermaid-signal-text-color, var(--_fg));
+    }
+    .pele-activations {
+      fill: var(--mermaid-activation-background-color, var(--_s));
+      stroke: var(--mermaid-activation-border-color, var(--_b));
+    }
+    .pele-sequence-number > text {
+      fill: var(--mermaid-sequence-number-color, var(--_bg));
+    }
+    /* loop / alt / opt…: the frame and its tab, the tab's keyword, the label */
+    .pele-frames {
+      stroke: var(--mermaid-label-box-border-color, var(--_b));
+    }
+    .pele-frame > rect[fill='var(--_s)'] {
+      fill: var(--mermaid-label-box-background-color, var(--_s));
+    }
+    .pele-frame-kind {
+      fill: var(--mermaid-label-text-color, var(--_m));
+    }
+    .pele-frame-label {
+      fill: var(--mermaid-loop-text-color, var(--_m));
+    }
+  }
+
+  /* --- Class --- */
+  .pele.pele-class {
+    .pele-node.pele-class text:not([fill]) {
+      fill: var(--mermaid-class-text-color, var(--_fg));
+    }
+    .pele-node.pele-class > rect {
+      filter: var(--mermaid-node-shadow, none);
+    }
+    .pele-edge-label > rect {
+      fill: var(--mermaid-edge-label-background-color, var(--_bg));
+    }
+    .pele-namespace > rect {
+      stroke: var(--mermaid-cluster-border-color, var(--_b));
+      fill-opacity: 1;
+    }
+  }
+
+  /* --- State --- */
+  .pele.pele-state {
+    --pele-surface: var(--mermaid-state-background-color);
+    --pele-border: var(--mermaid-state-border-color);
+    --pele-line: var(--mermaid-transition-color);
+
+    .pele-node.pele-state > .pele-label:not([fill]) {
+      fill: var(--mermaid-state-label-color, var(--_fg));
+    }
+    .pele-node:is(.pele-state, .pele-state-choice) > :is(rect, polygon) {
+      filter: var(--mermaid-node-shadow, none);
+    }
+    :is(.pele-state-start > circle, .pele-state-fork > rect, .pele-state-join > rect) {
+      fill: var(--mermaid-special-state-color, var(--_l));
+    }
+    .pele-state-end > circle[stroke='var(--_l)'] {
+      stroke: var(--mermaid-special-state-color, var(--_l));
+    }
+    .pele-state-end > circle[fill='var(--_l)'] {
+      fill: var(--mermaid-inner-end-background-color, var(--_l));
+    }
+    .pele-state-composite > rect {
+      fill: var(--mermaid-composite-background-color, var(--_a));
+      stroke: var(--mermaid-composite-border-color, var(--_b));
+      fill-opacity: 1;
+    }
+    .pele-state-composite > path {
+      stroke: var(--mermaid-composite-border-color, var(--_b));
+    }
+    .pele-edge-label > rect {
+      fill: var(--mermaid-edge-label-background-color, var(--_bg));
+    }
+    .pele-edge-label text:not([fill]) {
+      fill: var(--mermaid-transition-label-color, var(--_fg));
+    }
+  }
+
+  /* --- Entity-relationship --- */
+  .pele.pele-er {
+    --pele-line: var(--mermaid-relation-color);
+
+    /* An entity with attributes is one box (the header and the even rows)
+       with the odd rows striped over it. */
+    .pele-entity:has(> .pele-er-stripes) > rect[fill='var(--_s)'] {
+      fill: var(
+        --mermaid-row-even-background-color,
+        var(--mermaid-attribute-even-background-color, var(--_s))
+      );
+    }
+    .pele-er-stripes {
+      fill: var(
+        --mermaid-row-odd-background-color,
+        var(--mermaid-attribute-odd-background-color, var(--_bg))
+      );
+    }
+    .pele-entity > rect:first-child {
+      filter: var(--mermaid-node-shadow, none);
+    }
+    .pele-edge-label > rect {
+      fill: var(--mermaid-relation-label-background-color, var(--_bg));
+    }
+    .pele-edge-label text:not([fill]) {
+      fill: var(--mermaid-relation-label-color, var(--_fg));
+    }
+    .pele-cluster > rect {
+      stroke: var(--mermaid-cluster-border-color, var(--_b));
+      fill-opacity: 1;
+    }
+  }
+
+  /* --- Requirement --- */
+  .pele.pele-requirement {
+    --pele-surface: var(--mermaid-requirement-background-color);
+    --pele-border: var(--mermaid-requirement-border-color);
+    --pele-line: var(--mermaid-relation-color);
+
+    .pele-node text:not([fill]) {
+      fill: var(--mermaid-requirement-text-color, var(--_fg));
+    }
+    .pele-node > rect {
+      filter: var(--mermaid-node-shadow, none);
+    }
+    .pele-edge-labels {
+      fill: var(--mermaid-relation-label-color, var(--_m));
+    }
+    .pele-edge-label > rect {
+      fill: var(--mermaid-relation-label-background-color, var(--_bg));
+    }
+  }
+
+  /* --- Gantt --- */
+  .pele.pele-gantt {
+    .pele-section:is(.pele-section-0, .pele-section-2) {
+      fill: var(--mermaid-section-background-color, var(--_s));
+    }
+    .pele-section:is(.pele-section-1, .pele-section-3) {
+      fill: var(--mermaid-alt-section-background-color, none);
+    }
+    .pele-excluded {
+      fill: var(--mermaid-exclude-background-color, var(--_a));
+    }
+    .pele-grid > path {
+      stroke: var(--mermaid-grid-color, var(--_b));
+    }
+    .pele-verts {
+      stroke: var(--mermaid-vert-line-color, var(--_l));
+    }
+    .pele-today > path:first-child {
+      stroke: var(--mermaid-today-line-color, var(--_c));
+    }
+    .pele-today > path + path {
+      fill: var(--mermaid-today-line-color, var(--_c));
+    }
+
+    /* Tasks: a bar, or a diamond for a milestone; inside a link when clicked.
+       A critical task keeps its border when it is also active or done. */
+    :is(.pele-task, .pele-task > a) > :is(rect, path) {
+      fill: var(--mermaid-task-background-color, var(--_c));
+      stroke: var(--mermaid-task-border-color, var(--_c));
+      fill-opacity: 1;
+    }
+    :is(.pele-task.pele-crit, .pele-task.pele-crit > a) > :is(rect, path) {
+      fill: var(--mermaid-crit-task-background-color, var(--pele-critical, #e45756));
+      stroke: var(--mermaid-crit-task-border-color, var(--pele-critical, #e45756));
+    }
+    :is(.pele-task.pele-active, .pele-task.pele-active > a) > :is(rect, path) {
+      fill: var(--mermaid-active-task-background-color, var(--_c));
+    }
+    :is(.pele-task.pele-active:not(.pele-crit), .pele-task.pele-active:not(.pele-crit) > a)
+      > :is(rect, path) {
+      stroke: var(--mermaid-active-task-border-color, var(--_c));
+    }
+    :is(.pele-task.pele-done, .pele-task.pele-done > a) > :is(rect, path) {
+      fill: var(--mermaid-done-task-background-color, var(--_a));
+    }
+    :is(.pele-task.pele-done:not(.pele-crit), .pele-task.pele-done:not(.pele-crit) > a)
+      > :is(rect, path) {
+      stroke: var(--mermaid-done-task-border-color, var(--_b));
+    }
+    /* Pele does not mark whether a label sits inside its bar or beside it. */
+    .pele-task:not(.pele-unscheduled) .pele-label {
+      fill: var(--mermaid-task-text-color, var(--_fg));
+    }
+    .pele-task.pele-clickable .pele-label {
+      fill: var(--mermaid-task-text-clickable-color, var(--_fg));
+    }
+  }
+
+  /* --- Pie: slices from the seed palette, as Mermaid derives pie1–pie8 --- */
+  .pele.pele-pie {
+    --pele-series-1: var(--mermaid-primary-color);
+    --pele-series-2: var(--mermaid-secondary-color);
+    --pele-series-3: var(--mermaid-tertiary-color);
+    --pele-series-4: hsl(from var(--mermaid-primary-color) h s calc(l - 10));
+    --pele-series-5: hsl(from var(--mermaid-secondary-color) h s calc(l - 10));
+    --pele-series-6: hsl(from var(--mermaid-tertiary-color) h s calc(l - 10));
+    --pele-series-7: hsl(from var(--mermaid-primary-color) calc(h + 60) s calc(l - 10));
+    --pele-series-8: hsl(from var(--mermaid-primary-color) calc(h - 60) s calc(l - 10));
+
+    .pele-title {
+      fill: var(--mermaid-pie-title-text-color, var(--_fg));
+    }
+    .pele-slices {
+      stroke: var(--mermaid-pie-stroke-color, var(--_bg));
+    }
+    .pele-slice-labels {
+      fill: var(--mermaid-pie-section-text-color, var(--_bg));
+    }
+    .pele-legend {
+      fill: var(--mermaid-pie-legend-text-color, var(--_fg));
+    }
+  }
+
+  /* --- Git: branches from the seed palette, as Mermaid derives git0–git7
+     (darkened on light backgrounds, lightened on dark ones) --- */
+  .pele.pele-gitGraph {
+    --pele-series-1: light-dark(
+      hsl(from var(--mermaid-primary-color) h s calc(l - 25)),
+      hsl(from var(--mermaid-primary-color) h s calc(l + 25))
+    );
+    --pele-series-2: light-dark(
+      hsl(from var(--mermaid-secondary-color) h s calc(l - 25)),
+      hsl(from var(--mermaid-secondary-color) h s calc(l + 25))
+    );
+    --pele-series-3: light-dark(
+      hsl(from var(--mermaid-tertiary-color) h s calc(l - 25)),
+      hsl(from var(--mermaid-tertiary-color) h s calc(l + 25))
+    );
+    --pele-series-4: light-dark(
+      hsl(from var(--mermaid-primary-color) calc(h - 30) s calc(l - 25)),
+      hsl(from var(--mermaid-primary-color) calc(h - 30) s calc(l + 25))
+    );
+    --pele-series-5: light-dark(
+      hsl(from var(--mermaid-primary-color) calc(h - 60) s calc(l - 25)),
+      hsl(from var(--mermaid-primary-color) calc(h - 60) s calc(l + 25))
+    );
+    --pele-series-6: light-dark(
+      hsl(from var(--mermaid-primary-color) calc(h - 90) s calc(l - 25)),
+      hsl(from var(--mermaid-primary-color) calc(h - 90) s calc(l + 25))
+    );
+    --pele-series-7: light-dark(
+      hsl(from var(--mermaid-primary-color) calc(h + 60) s calc(l - 25)),
+      hsl(from var(--mermaid-primary-color) calc(h + 60) s calc(l + 25))
+    );
+    --pele-series-8: light-dark(
+      hsl(from var(--mermaid-primary-color) calc(h + 120) s calc(l - 25)),
+      hsl(from var(--mermaid-primary-color) calc(h + 120) s calc(l + 25))
+    );
+
+    .pele-branch > .pele-label {
+      fill: var(--mermaid-primary-text-color, var(--_bg));
+    }
+    .pele-commit-label > rect {
+      fill: var(--mermaid-commit-label-background-color, var(--_bg));
+    }
+    .pele-commit-label text {
+      fill: var(--mermaid-commit-label-color, var(--_m));
+    }
+    .pele-tag > path {
+      fill: var(--mermaid-tag-label-background-color, var(--_s));
+      stroke: var(--mermaid-tag-label-border-color, var(--_b));
+    }
+    .pele-tag > circle {
+      fill: var(--mermaid-tag-label-border-color, var(--_b));
+    }
+    .pele-tag > text {
+      fill: var(--mermaid-tag-label-color, var(--_fg));
+    }
+  }
+
+  /* --- Quadrant chart (quadrants are numbered as in Mermaid) --- */
+  .pele.pele-quadrantChart {
+    .pele-title {
+      fill: var(--mermaid-quadrant-title-color, var(--_fg));
+    }
+    .pele-quadrants {
+      stroke: var(--mermaid-quadrant-border-color, var(--_b));
+    }
+    .pele-quadrant[data-id='1'] > rect {
+      fill: var(--mermaid-quadrant-1-background-color, var(--_s));
+    }
+    .pele-quadrant[data-id='2'] > rect {
+      fill: var(--mermaid-quadrant-2-background-color, var(--_s));
+    }
+    .pele-quadrant[data-id='3'] > rect {
+      fill: var(--mermaid-quadrant-3-background-color, var(--_s));
+    }
+    .pele-quadrant[data-id='4'] > rect {
+      fill: var(--mermaid-quadrant-4-background-color, var(--_s));
+    }
+    :is(.pele-quadrant > .pele-label, .pele-point-labels, .pele-axis-labels) {
+      fill: var(--mermaid-quadrant-text-color, var(--_fg));
+    }
+    .pele-points {
+      fill: var(--mermaid-quadrant-point-color, var(--pele-series-1, #4c78a8));
+    }
+  }
+
+  /* --- Venn --- */
+  .pele.pele-venn {
+    .pele-title {
+      fill: var(--mermaid-venn-title-text-color, var(--_fg));
+    }
+    .pele-venn-region > .pele-label {
+      fill: var(--mermaid-venn-set-text-color, var(--_fg));
+    }
+  }
+
+  /* --- Packet --- */
+  .pele.pele-packet {
+    --pele-surface: var(--mermaid-packet-block-background-color);
+    --pele-border: var(--mermaid-packet-block-border-color);
+
+    .pele-title {
+      fill: var(--mermaid-packet-title-color, var(--_fg));
+    }
+    .pele-packet-fields {
+      fill: var(--mermaid-packet-label-color, var(--_fg));
+    }
+    .pele-packet-bits {
+      fill: var(--mermaid-packet-byte-color, var(--_m));
+    }
+  }
+
+  /* --- XY chart (the series keep Pele's palette) --- */
+  .pele.pele-xychart {
+    .pele-title {
+      fill: var(--mermaid-xychart-title-color, var(--_fg));
+    }
+    .pele-axis {
+      stroke: var(--mermaid-xychart-axis-color, var(--_b));
+    }
+    :is(.pele-axis-labels, .pele-axis-titles) {
+      fill: var(--mermaid-xychart-axis-color, var(--_m));
+    }
+    :is(.pele-data-labels, .pele-point-labels, .pele-legend) {
+      fill: var(--mermaid-xychart-text-color, var(--_fg));
+    }
+  }
+
+  /* --- Radar --- */
+  .pele.pele-radar {
+    .pele-axes {
+      stroke: var(--mermaid-radar-axis-color, var(--_b));
+    }
+    .pele-graticule {
+      stroke: var(--mermaid-radar-graticule-color, var(--_a));
+    }
+  }
+
+  /* --- Wardley map --- */
+  .pele.pele-wardley {
+    .pele-wardley-axis {
+      stroke: var(--mermaid-wardley-axis-color, var(--_l));
+    }
+    :is(.pele-wardley-axis-label, .pele-wardley-stage-label) {
+      fill: var(--mermaid-wardley-axis-text-color, var(--_m));
+    }
+    :is(.pele-wardley-grid, .pele-wardley-stage) {
+      stroke: var(--mermaid-wardley-grid-color, var(--_b));
+    }
+    /* A component's mark; its sourcing strategy rings it in a class of its own. */
+    .pele-node > :is(circle, rect):not([class]) {
+      fill: var(--mermaid-wardley-component-background-color, var(--_bg));
+      stroke: var(--mermaid-wardley-component-border-color, var(--_l));
+    }
+    .pele-node > .pele-label {
+      fill: var(--mermaid-wardley-component-label-color, var(--_fg));
+    }
+    .pele-edge > path:not(.pele-marker) {
+      stroke: var(--mermaid-wardley-link-color, var(--_l));
+    }
+    .pele-edge > .pele-marker {
+      fill: var(--mermaid-wardley-link-color, var(--_l));
+    }
+    .pele-wardley-trend > :is(path, circle):not(.pele-marker) {
+      stroke: var(--mermaid-wardley-evolution-color, var(--_c));
+    }
+    .pele-wardley-trend > .pele-marker {
+      fill: var(--mermaid-wardley-evolution-color, var(--_c));
+    }
+    :is(.pele-wardley-annotations > rect, .pele-wardley-annotation > circle) {
+      fill: var(--mermaid-wardley-annotation-background-color, var(--_bg));
+      stroke: var(--mermaid-wardley-annotation-border-color, var(--_b));
+    }
+    :is(.pele-wardley-annotations, .pele-wardley-annotation) text {
+      fill: var(--mermaid-wardley-annotation-text-color, var(--_fg));
+    }
+  }
+
+  /* --- Cynefin --- */
+  .pele.pele-cynefin {
+    .pele-cynefin-region {
+      fill-opacity: 1;
+    }
+    .pele-cynefin-region[data-id='complex'] {
+      fill: var(--mermaid-cynefin-complex-background-color, var(--pele-series-3, #54a24b));
+    }
+    .pele-cynefin-region[data-id='complicated'] {
+      fill: var(--mermaid-cynefin-complicated-background-color, var(--pele-series-1, #4c78a8));
+    }
+    .pele-cynefin-region[data-id='chaotic'] {
+      fill: var(--mermaid-cynefin-chaotic-background-color, var(--pele-series-4, #e45756));
+    }
+    .pele-cynefin-region[data-id='clear'] {
+      fill: var(--mermaid-cynefin-clear-background-color, var(--pele-series-2, #f58518));
+    }
+    .pele-cynefin-region[data-id='confusion'] {
+      fill: var(--mermaid-cynefin-confusion-background-color, var(--pele-series-5, #72b7b2));
+      stroke: var(--mermaid-cynefin-boundary-color, var(--_b));
+    }
+    .pele-cynefin-boundaries {
+      stroke: var(--mermaid-cynefin-boundary-color, var(--_b));
+    }
+    .pele-cynefin-cliff {
+      stroke: var(--mermaid-cynefin-cliff-color, var(--_l));
+    }
+    .pele-cynefin-domain > .pele-label {
+      fill: var(--mermaid-cynefin-label-color, var(--_fg));
+    }
+    .pele-node > .pele-label:not([fill]) {
+      fill: var(--mermaid-cynefin-text-color, var(--_fg));
+    }
+    .pele-edge > path:not(.pele-marker) {
+      stroke: var(--mermaid-cynefin-arrow-color, var(--_l));
+    }
+    .pele-edge > .pele-marker {
+      fill: var(--mermaid-cynefin-arrow-color, var(--_l));
+    }
+  }
+
+  /* --- Event modeling: each kind of element keeps its own hue --- */
+  .pele.pele-eventmodeling {
+    .pele-em-lane > rect {
+      fill: var(--mermaid-em-swimlane-background-color, var(--_s));
+      stroke: var(--mermaid-em-swimlane-border-color, none);
+    }
+    /* The coloured face of a box; under it Pele lays a background-coloured one. */
+    .pele-em-ui > rect:last-of-type {
+      fill: var(--mermaid-em-ui-background-color, var(--_bg));
+      stroke: var(--mermaid-em-ui-border-color, var(--_b));
+    }
+    .pele-em-command > rect:last-of-type {
+      fill: var(--mermaid-em-command-background-color, var(--pele-series-1, #4c78a8));
+      stroke: var(--mermaid-em-command-border-color, var(--pele-series-1, #4c78a8));
+      fill-opacity: 1;
+    }
+    .pele-em-event > rect:last-of-type {
+      fill: var(--mermaid-em-event-background-color, var(--pele-series-2, #f58518));
+      stroke: var(--mermaid-em-event-border-color, var(--pele-series-2, #f58518));
+      fill-opacity: 1;
+    }
+    .pele-em-processor > rect:last-of-type {
+      fill: var(--mermaid-em-processor-background-color, var(--pele-series-7, #b279a2));
+      stroke: var(--mermaid-em-processor-border-color, var(--pele-series-7, #b279a2));
+      fill-opacity: 1;
+    }
+    .pele-em-readmodel > rect:last-of-type {
+      fill: var(--mermaid-em-read-model-background-color, var(--pele-series-3, #54a24b));
+      stroke: var(--mermaid-em-read-model-border-color, var(--pele-series-3, #54a24b));
+      fill-opacity: 1;
+    }
+    .pele-edge > path:not(.pele-marker) {
+      stroke: var(--mermaid-em-relation-color, var(--_l));
+    }
+    .pele-edge > .pele-marker {
+      fill: var(--mermaid-em-arrowhead-color, var(--_l));
+    }
+  }
+
+  /* --- Use case --- */
+  .pele.pele-usecase {
+    .pele-actor-figure > [fill='var(--_s)'] {
+      fill: var(--mermaid-usecase-actor-background-color, var(--_s));
+    }
+    .pele-actor-figure > [fill='var(--_b)'] {
+      fill: var(--mermaid-usecase-actor-border-color, var(--_b));
+    }
+    .pele-actor-figure > [stroke='var(--_b)'] {
+      stroke: var(--mermaid-usecase-actor-border-color, var(--_b));
+    }
+    .pele-node.pele-usecase > [fill='var(--_s)'] {
+      fill: var(--mermaid-usecase-background-color, var(--_s));
+    }
+    .pele-node.pele-usecase > [stroke='var(--_b)'] {
+      stroke: var(--mermaid-usecase-border-color, var(--_b));
+    }
+    .pele-boundary > rect {
+      fill: var(--mermaid-usecase-boundary-background-color, var(--_a));
+      stroke: var(--mermaid-usecase-boundary-border-color, var(--_b));
+      fill-opacity: 1;
+    }
+    .pele-edge.pele-include {
+      stroke: var(--mermaid-usecase-include-line-color, var(--_l));
+    }
+    .pele-edge.pele-extend {
+      stroke: var(--mermaid-usecase-extend-line-color, var(--_l));
+    }
+    .pele-edge.pele-include > .pele-marker[fill='var(--_l)'] {
+      fill: var(--mermaid-usecase-include-line-color, var(--_l));
+    }
+    .pele-edge.pele-extend > .pele-marker[fill='var(--_l)'] {
+      fill: var(--mermaid-usecase-extend-line-color, var(--_l));
+    }
+  }
+
+  /* --- Architecture --- */
+  .pele.pele-architecture {
+    .pele-cluster > rect {
+      stroke: var(--mermaid-arch-group-border-color, var(--_b));
+    }
+    .pele-edges {
+      stroke: var(--mermaid-arch-edge-color, var(--_l));
+    }
+    .pele-junction > circle {
+      fill: var(--mermaid-arch-edge-color, var(--_l));
+    }
+    .pele-edge > .pele-marker[fill='var(--_l)'] {
+      fill: var(--mermaid-arch-edge-arrow-color, var(--_l));
+    }
+  }
+
+  /* --- C4 and block: boundaries and blocks are Mermaid's "surfaces" --- */
+  .pele.pele-c4 {
+    .pele-cluster > rect {
+      stroke: var(--mermaid-surface-border-color, var(--_b));
+    }
+    .pele-c4-person:not(.pele-c4-external) > [fill='var(--_s)'] {
+      fill: var(--mermaid-person-background-color, var(--_s));
+    }
+    .pele-c4-person > [stroke='var(--_b)'] {
+      stroke: var(--mermaid-person-border-color, var(--_b));
+    }
+  }
+  .pele.pele-block .pele-cluster > rect {
+    fill: var(--mermaid-surface-background-color, var(--_a));
+    stroke: var(--mermaid-surface-border-color, var(--_b));
+    fill-opacity: 1;
+  }
+
+  /* --- Agent flow --- */
+  .pele.pele-agentflow .pele-cluster > rect {
+    stroke: var(--mermaid-flow-container-border-color, var(--pele-series-8, #9d755d));
   }
 }
 
@@ -16,8 +676,8 @@
 }
 
 /* Floating toolbar: hidden until the diagram is hovered, anchored bottom-right.
-   It is a sibling of the pan/zoom container so it stays put while the diagram
-   is panned/zoomed. */
+   It is a sibling of the diagram's container so it stays clear of Pele's zoom
+   gestures. */
 .mermaid-toolbar {
   position: absolute;
   right: 0.2em;
@@ -64,33 +724,23 @@
   pointer-events: auto;
 }
 
-/* `fill` variant — the diagram sizes to its container rather than its natural
-   size. For host-provided full-screen / lightbox shells, which supply the
-   surrounding chrome (backdrop, padding, close button) themselves. */
+/* `fill` variant — the diagram fits its container in both axes rather than
+   its width alone. For host-provided full-screen / lightbox shells, which
+   supply the surrounding chrome (backdrop, padding, close button) themselves.
+   The SVG's width is set by `fitToContainer` in render.ts; this centres it. */
 .mermaid-diagram.mermaid-diagram-fill {
   width: 100%;
   height: 100%;
 
-  /* Keep the pan/zoom owner full-size with no layout offset (e.g. flex
-     centering): panzoom positions via a top-left-origin transform and clamps
-     drag bounds to that origin, so an offset element hits the clamp early. */
   .mermaid-diagram-content {
     width: 100%;
     height: 100%;
-    user-select: text;
 
-    /* The pan/zoom container fills the canvas so the SVG can size to both axes. */
     > div {
-      width: 100%;
-      height: 100%;
-    }
-
-    /* Drop Mermaid's inline `max-width: <natural>px` cap and let the SVG fill the
-       canvas in both axes; its viewBox `preserveAspectRatio` ("meet") then scales
-       the diagram to fit (contain) and centres it, so tall diagrams fit the
-       height too — the box stays at the owner's top-left, so dragging is unaffected. */
-    svg {
-      max-width: none !important;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
       width: 100%;
       height: 100%;
     }

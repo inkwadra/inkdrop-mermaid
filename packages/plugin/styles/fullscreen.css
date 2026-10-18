@@ -17,6 +17,11 @@
       background-color: var(--modal-box-content-background);
       padding: 2em;
 
+      /* The stage is not the preview: match what Pele paints behind labels. */
+      .mermaid-diagram {
+        --pele-bg: var(--modal-box-content-background);
+      }
+
       .ui.button.close-button {
         position: absolute;
         top: 2em;

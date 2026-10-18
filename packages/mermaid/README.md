@@ -1,7 +1,7 @@
 # @inkdropapp/mermaid
 
-React components for rendering [Mermaid](https://mermaid.js.org/) diagrams that follow
-the host's theme, with drag-to-pan / scroll-to-zoom and a hover toolbar.
+React components for rendering [Mermaid](https://mermaid.js.org/) diagrams with
+[Pele](https://pele.run) that follow the host's theme, with zoom / pan and a hover toolbar.
 
 Extracted from the [Inkdrop Mermaid plugin](https://github.com/inkdropapp/inkdrop-mermaid)
 so the plugin, the website demo, and the mobile web editor can share one implementation
@@ -18,9 +18,8 @@ mobile WebView.
 npm install @inkdropapp/mermaid
 ```
 
-`react`, `mermaid`, and `panzoom` are **peer dependencies** — the host installs and
-dedupes them. That is deliberate: two copies of `mermaid` on a page race over
-`mermaid.initialize()`'s module-global config.
+`react` is a **peer dependency**. [`pele`](https://www.npmjs.com/package/pele) is a regular
+dependency; it has no runtime dependencies of its own.
 
 ## Required stylesheets
 
@@ -31,10 +30,36 @@ import '@inkdropapp/css/mermaid.css' // the --mermaid-* design tokens
 import '@inkdropapp/mermaid/styles.css' // component layout (diagram, toolbar)
 ```
 
-`@inkdropapp/css/mermaid.css` defines the `--mermaid-*` custom properties this package
-resolves colours from. They carry **no fallbacks** — without that sheet a diagram renders
-structurally correct but unpainted. There is no runtime warning for this; if diagrams come
-out blank, check that sheet first.
+`@inkdropapp/css/mermaid.css` defines the `--mermaid-*` custom properties, and this
+package's sheet maps them onto Pele's `--pele-*` variables (`--pele-surface` ←
+`--mermaid-node-background-color`, `--pele-line` ← `--mermaid-line-color`, and so on).
+Without the token sheet, diagrams fall back to Pele's default palette.
+
+The per-diagram tokens apply too, to the parts Pele draws for them: sequence actors,
+lifelines, activations, notes and `loop` / `alt` frames; class, state and ER boxes; Gantt
+sections and task states; requirement, C4, block, architecture, use case, event modeling,
+packet, quadrant, Venn, XY, radar, Wardley and Cynefin colours; and the node shadow. Pie
+slices and git branches are derived from `--mermaid-primary-color`,
+`--mermaid-secondary-color` and `--mermaid-tertiary-color`, as Mermaid derived them. Where
+Pele draws a part differently from Mermaid, the token goes to the nearest part:
+
+- ER entities are one box with every other attribute row striped over it, so the header
+  takes `--mermaid-row-even-background-color` along with the even rows.
+- Pele does not mark whether a Gantt label sits inside its bar or beside it, so all task
+  labels take `--mermaid-task-text-color`.
+
+These tokens have no counterpart in Pele and are not used:
+`--mermaid-default-link-color`, `--mermaid-label-color`, `--mermaid-secondary-border-color`,
+`--mermaid-composite-title-background-color`, `--mermaid-alt-background-color`,
+`--mermaid-task-text-light-color`, `--mermaid-task-text-dark-color`,
+`--mermaid-task-text-outside-color`, `--mermaid-pie-outer-stroke-color`,
+`--mermaid-xychart-background-color` and `--mermaid-wardley-background-color`.
+
+A diagram's own `style`, `classDef` and `linkStyle` still win over every token.
+
+`--pele-bg` is mapped to `--editor-background-color`, not `--mermaid-background-color`:
+Pele paints it behind edge labels and as text on filled shapes, so it has to be opaque.
+Override it on `.mermaid-diagram` when a diagram sits on another background.
 
 ## Usage
 
@@ -69,20 +94,28 @@ function Diagram({ code }: { code: string }) {
 | ------------------ | ------- | -------------------------------------------------------------------------------------------------------------- |
 | `code`             | —       | The diagram source (the body of a ` ```mermaid ` block).                                                       |
 | `Button`           | —       | The host's button component, used for the toolbar. Without one the toolbar renders nothing.                    |
-| `printMode`        | `false` | Render for print/export: pins colours to their light variants and hides the toolbar and pan/zoom.              |
+| `printMode`        | `false` | Render for print/export: pins colours to their light variants and hides the toolbar and zoom.                  |
 | `toolbar`          | `true`  | Show the hover toolbar. Ignored in print mode.                                                                 |
-| `panZoom`          | `true`  | Enable drag-to-pan and Ctrl/Cmd + scroll zoom. Ignored in print mode.                                          |
-| `fill`             | `false` | Size the diagram to its container and keep the toolbar visible, for full-screen / lightbox shells.             |
-| `themeRevision`    | —       | Any value that changes when the host's theme changes; triggers a re-render.                                    |
-| `themeSwapDelayMs` | `400`   | Wait before that re-render, so the new theme's stylesheet has swapped in. Set `0` for synchronous theme swaps. |
+| `panZoom`          | `true`  | Enable Pele's zoom (Ctrl/Cmd + scroll, pinch, double-click, toolbar) and dragging. Ignored in print mode.      |
+| `fill`             | `false` | Fit the diagram to its container in both axes and keep the toolbar visible, for full-screen / lightbox shells. |
+| `themeRevision`    | —       | Any value that changes when the host's theme changes; re-measures labels if the theme changed the font.        |
+| `themeSwapDelayMs` | `400`   | Wait before re-measuring, so the new theme's stylesheet has swapped in. Set `0` for synchronous theme swaps.   |
 | `onExpand`         | —       | When set, the toolbar shows an expand button that calls this.                                                  |
 
-### Why `themeRevision` exists
+### Theme switches
 
-Colours are resolved from CSS and **baked into the SVG at render time**, so an
-already-rendered diagram does not follow a live theme switch on its own. Pass a value that
-changes with the theme and the diagram re-renders. The default `themeSwapDelayMs` covers
-the gap between a theme being selected and its stylesheet actually being applied.
+Pele's SVG references `--pele-*` variables rather than concrete colours, so a drawn diagram
+follows a theme switch — light/dark included — without re-rendering. `themeRevision` is
+only needed because Pele measures labels in the current font when it lays a diagram out: a
+theme that changes the font needs a re-measure, which a new `themeRevision` triggers once
+`themeSwapDelayMs` has passed.
+
+### Errors
+
+A diagram that cannot be parsed is reported in place by Pele: the last good drawing stays,
+dimmed, with the error over its bottom edge, or the message alone if nothing has been drawn
+yet. The error is coloured with `--pele-error` (← `--mermaid-error-text-color`). The
+toolbar is hidden while there is an error.
 
 ### Full-screen
 
@@ -98,17 +131,21 @@ button). Pass `fill` so the diagram sizes to that shell:
 
 ## Also exported
 
-`useMermaidRendering`, `usePanZoom`, `MermaidToolbar`, `buildInkdropThemeVariables`, and
-the toolbar icons — for hosts that want to compose their own layout instead of using
-`MermaidDiagram`.
+`useMermaidRendering`, `useZoomControls`, `MermaidToolbar`, and the toolbar icons — for
+hosts that want to compose their own layout instead of using `MermaidDiagram`.
 
-## A note on Mermaid versions
+## Migrating from 0.2 (Mermaid)
 
-`buildInkdropThemeVariables` emits **complete** nested config objects for the diagram types
-Mermaid exposes that way (`packet`, `xyChart`, `radar`, `wardley`, `cynefin`), because
-Mermaid re-applies override objects verbatim and a partial one would drop its siblings.
-The non-colour values in those objects (widths, font sizes, `plotColorPalette`) are copied
-from Mermaid's `theme-base.js`, so **re-check them when bumping Mermaid's minor version**.
+- `mermaid` and `panzoom` are no longer peer dependencies; uninstall them if nothing else
+  uses them.
+- `buildInkdropThemeVariables` and `usePanZoom` are gone. Theming is plain CSS now; zoom
+  comes from Pele, driven through `useZoomControls`.
+- `useMermaidRendering(code, options)` takes the code and an options object (`printMode`,
+  `panZoom`, `fill`, `themeRevision`, `themeSwapDelayMs`) and returns `getZoom` instead of
+  `renderNonce`.
+- Mermaid's `themeVariables` (including in `%%{init}%%` directives) no longer apply. Use
+  `style` / `classDef` in the diagram, or the `--pele-*` variables.
+- Pele has its own layout and visual style, so diagrams look different from Mermaid's.
 
 ## License
 

@@ -1,11 +1,12 @@
 {
   "name": "@inkdropapp/mermaid",
   "version": "0.2.0",
-  "description": "Host-agnostic React components for rendering themed, pannable Mermaid diagrams",
+  "description": "Host-agnostic React components for rendering themed, zoomable Mermaid diagrams with Pele",
   "keywords": [
     "diagram",
     "inkdrop",
     "mermaid",
+    "pele",
     "react"
   ],
   "license": "MIT",
@@ -44,17 +45,16 @@
     "typecheck": "tsc --noEmit",
     "prepublishOnly": "pnpm build"
   },
+  "dependencies": {
+    "pele": "^1.6.0"
+  },
   "devDependencies": {
     "@types/react": "^19.3.0",
-    "mermaid": "12.1.0",
-    "panzoom": "9.4.4",
     "react": "^19.3.0",
     "tsdown": "^0.23.1",
     "typescript": "^7.0.2"
   },
   "peerDependencies": {
-    "mermaid": "^12.0.0",
-    "panzoom": "^9.4.4",
     "react": ">=18"
   }
 }
